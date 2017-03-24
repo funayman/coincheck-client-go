@@ -62,19 +62,26 @@ type Ticker struct {
 }
 
 func (t *Ticker) UnmarshalJSON(b []byte) (err error) {
-	type alias Ticker
+	type Alias Ticker
 	tmp := &struct {
-		Timestamp int64 `json:"timestamp"`
-		*Ticker
+		Timestamp int64  `json:"timestamp"`
+		Volume    string `json:"volume"`
+		*Alias
 	}{
-		Ticker: (*Ticker)(t),
+		Alias: (*Alias)(t),
 	}
 
-	if err = json.Unmarshal(b, tmp); err != nil {
+	if err = json.Unmarshal(b, &tmp); err != nil {
+		return err
+	}
+
+	v, err := strconv.ParseFloat(tmp.Volume, 64)
+	if err != nil {
 		return err
 	}
 
 	t.Timestamp = time.Unix(tmp.Timestamp, 0)
+	t.Volume = v
 	t.Raw = b
 	return nil
 }
