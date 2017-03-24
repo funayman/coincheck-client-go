@@ -1,3 +1,4 @@
+//Package coincheck provides minimal interaction with the CoinCheck API (https://coincheck.com/documents/exchange/api)
 package coincheck
 
 import (
@@ -13,12 +14,15 @@ import (
 	"time"
 )
 
+//CoinCheck is a client for the CoinCheck Api
+//apiKey and apiSecret are required for non-public endpoints (e.g. Orders, Account, etc)
 type CoinCheck struct {
 	apiKey     string
 	apiSecret  string
 	httpClient http.Client
 }
 
+//New returns a new instance of the CoicCheck client with the specified API key & secret
 func New(key, secret string) *CoinCheck {
 	return &CoinCheck{key, secret, http.Client{}}
 }
@@ -42,6 +46,10 @@ func createRequest(method, url string, data url.Values, key, secret string) (req
 }
 
 //Public Api
+
+//Ticker holds all information provided by the Ticker endpoint
+//Timestamp is converted into a time.Time type rather than a Unix Timestamp
+//Raw houses the original JSON request data
 type Ticker struct {
 	Last      int       `json:"last"`
 	Bid       int       `json:"bid"`
@@ -71,6 +79,8 @@ func (t *Ticker) UnmarshalJSON(b []byte) (err error) {
 	return nil
 }
 
+//Ticker checks the latest information
+//More information can be found at https://coincheck.com/documents/exchange/api#ticker
 func (client *CoinCheck) Ticker() (t Ticker, err error) {
 	url := "https://coincheck.com/api/ticker"
 	req := createRequest("GET", url, nil, client.apiKey, client.apiSecret)
