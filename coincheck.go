@@ -34,10 +34,10 @@ func createSignature(nonce int64, url, secret string) string {
 	return hex.EncodeToString(sig.Sum(nil))
 }
 
-func createRequest(method, url string, data url.Values, key, secret string) (req *http.Request) {
+func createRequest(method, url string, data url.Values, key, secret string) (req *http.Request, err error) {
 	nonce := time.Now().UnixNano()
 
-	req, _ = http.NewRequest(method, url, bytes.NewBufferString(data.Encode()))
+	req, err = http.NewRequest(method, url, bytes.NewBufferString(data.Encode()))
 	req.Header.Add("ACCESS-KEY", key)
 	req.Header.Add("ACCESS-NONCE", strconv.FormatInt(nonce, 10))
 	req.Header.Add("ACCESS-SIGNATURE", createSignature(nonce, url, secret))
@@ -83,7 +83,10 @@ func (t *Ticker) UnmarshalJSON(b []byte) (err error) {
 //More information can be found at https://coincheck.com/documents/exchange/api#ticker
 func (client *CoinCheck) Ticker() (t Ticker, err error) {
 	url := "https://coincheck.com/api/ticker"
-	req := createRequest("GET", url, nil, client.apiKey, client.apiSecret)
+	req, err := createRequest("GET", url, nil, client.apiKey, client.apiSecret)
+	if err != nil {
+		return t, err
+	}
 	resp, err := client.httpClient.Do(req)
 	if err != nil {
 		return t, err
