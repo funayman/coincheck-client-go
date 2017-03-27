@@ -2,29 +2,62 @@
 package coincheck
 
 import (
-	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
 )
 
-//CoinCheck is a client for the CoinCheck Api
+const (
+	BUY  = "buy"
+	SELL = "sell"
+
+	BTC_JPY = "btc_jpy"
+	ETH_JPY = "eth_jpy"
+	ETH_BTC = "eth_btc"
+	ETC_JPY = "etc_jpy"
+	ETC_BTC = "etc_btc"
+	DAO_JPY = "dao_jpy"
+	LSK_JPY = "lsk_jpy"
+	LSK_BTC = "lsk_btc"
+	FCT_JPY = "fct_jpy"
+	FTC_BTC = "fct_btc"
+	XMR_JPY = "xmr_jpy"
+	XMR_BTC = "xmr_btc"
+	REP_JPY = "rep_jpy"
+	REP_BTC = "rep_btc"
+	XRP_JPY = "xrp_jpy"
+	XPR_BTC = "xrp_btc"
+	ZEC_JPY = "zec_jpy"
+	ZEC_BTC = "zec_btc"
+)
+
+//Client is a client for the CoinCheck Api
 //apiKey and apiSecret are required for non-public endpoints (e.g. Orders, Account, etc)
-type CoinCheck struct {
+type Client struct {
 	apiKey     string
 	apiSecret  string
 	httpClient http.Client
+
+	Ticker *Ticker
 }
 
 //New returns a new instance of the CoicCheck client with the specified API key & secret
-func New(key, secret string) *CoinCheck {
-	return &CoinCheck{key, secret, http.Client{}}
+func New(key, secret string) *Client {
+	c := &Client{
+		apiKey:     key,
+		apiSecret:  secret,
+		httpClient: http.Client{},
+	}
+
+	c.Ticker = &Ticker{client: c}
+
+	return c
 }
 
 func createSignature(nonce int64, url, secret string) string {
@@ -34,73 +67,27 @@ func createSignature(nonce int64, url, secret string) string {
 	return hex.EncodeToString(sig.Sum(nil))
 }
 
-func createRequest(method, url string, data url.Values, key, secret string) (req *http.Request, err error) {
+//DoRequest create a request for the given endpoint
+func (client Client) DoRequest(method, endpoint string, content map[string]string) (io.Reader, error) {
 	nonce := time.Now().UnixNano()
+	data := url.Values{}
+	for key, value := range content {
+		data.Add(key, value)
+	}
 
-	req, err = http.NewRequest(method, url, bytes.NewBufferString(data.Encode()))
-	req.Header.Add("ACCESS-KEY", key)
+	req, err := http.NewRequest(method, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("ACCESS-KEY", client.apiKey)
 	req.Header.Add("ACCESS-NONCE", strconv.FormatInt(nonce, 10))
-	req.Header.Add("ACCESS-SIGNATURE", createSignature(nonce, url, secret))
+	req.Header.Add("ACCESS-SIGNATURE", createSignature(nonce, endpoint, client.apiSecret))
+	req.URL.RawQuery = data.Encode()
 
-	return
-}
-
-//Public Api
-
-//Ticker holds all information provided by the Ticker endpoint
-//Timestamp is converted into a time.Time type rather than a Unix Timestamp
-//Raw houses the original JSON request data
-type Ticker struct {
-	Last      int       `json:"last"`
-	Bid       int       `json:"bid"`
-	Ask       int       `json:"ask"`
-	High      int       `json:"high"`
-	Low       int       `json:"low"`
-	Volume    float64   `json:"volume"`
-	Timestamp time.Time `json:"timestamp"`
-	Raw       []byte
-}
-
-func (t *Ticker) UnmarshalJSON(b []byte) (err error) {
-	type Alias Ticker
-	tmp := &struct {
-		Timestamp int64  `json:"timestamp"`
-		Volume    string `json:"volume"`
-		*Alias
-	}{
-		Alias: (*Alias)(t),
-	}
-
-	if err = json.Unmarshal(b, &tmp); err != nil {
-		return err
-	}
-
-	v, err := strconv.ParseFloat(tmp.Volume, 64)
-	if err != nil {
-		return err
-	}
-
-	t.Timestamp = time.Unix(tmp.Timestamp, 0)
-	t.Volume = v
-	t.Raw = b
-	return nil
-}
-
-//Ticker checks the latest information
-//More information can be found at https://coincheck.com/documents/exchange/api#ticker
-func (client *CoinCheck) Ticker() (t Ticker, err error) {
-	url := "https://coincheck.com/api/ticker"
-	req, err := createRequest("GET", url, nil, client.apiKey, client.apiSecret)
-	if err != nil {
-		return t, err
-	}
 	resp, err := client.httpClient.Do(req)
 	if err != nil {
-		return t, err
+		return nil, err
 	}
 
-	if err = json.NewDecoder(resp.Body).Decode(&t); err != nil {
-		return t, err
-	}
-	return t, nil
+	return resp.Body, nil
 }
