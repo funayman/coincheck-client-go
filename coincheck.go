@@ -2,9 +2,11 @@
 package coincheck
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -69,20 +71,32 @@ func createSignature(nonce int64, url, secret string) string {
 
 //DoRequest create a request for the given endpoint
 func (client Client) DoRequest(method, endpoint string, content map[string]string) (io.Reader, error) {
+	var body io.Reader
 	nonce := time.Now().UnixNano()
 	data := url.Values{}
 	for key, value := range content {
 		data.Add(key, value)
 	}
 
-	req, err := http.NewRequest(method, endpoint, nil)
+	switch method {
+	case "", "GET":
+		if content != nil {
+			endpoint = endpoint + "?" + data.Encode()
+		}
+	case "POST", "DELETE":
+		body = bytes.NewBufferString(data.Encode())
+	default:
+		return nil, errors.New("invalid method")
+
+	}
+
+	req, err := http.NewRequest(method, endpoint, body)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Add("ACCESS-KEY", client.apiKey)
 	req.Header.Add("ACCESS-NONCE", strconv.FormatInt(nonce, 10))
 	req.Header.Add("ACCESS-SIGNATURE", createSignature(nonce, endpoint, client.apiSecret))
-	req.URL.RawQuery = data.Encode()
 
 	resp, err := client.httpClient.Do(req)
 	if err != nil {
