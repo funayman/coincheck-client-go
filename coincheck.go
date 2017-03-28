@@ -6,13 +6,15 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/funayman/coincheck-client-go/errors"
 )
 
 const (
@@ -38,6 +40,10 @@ const (
 	ZEC_JPY = "zec_jpy"
 	ZEC_BTC = "zec_btc"
 )
+
+type IClient interface {
+	DoRequest(method, endpoint string, content map[string]string) (io.Reader, error)
+}
 
 //Client is a client for the CoinCheck Api
 //apiKey and apiSecret are required for non-public endpoints (e.g. Orders, Account, etc)
@@ -88,7 +94,7 @@ func (client Client) DoRequest(method, endpoint string, content map[string]strin
 	case "POST", "DELETE":
 		body = bytes.NewBufferString(data.Encode())
 	default:
-		return nil, errors.New("invalid method")
+		return nil, errors.NewGenericError("Invalid method (" + method + ")")
 
 	}
 
@@ -103,6 +109,14 @@ func (client Client) DoRequest(method, endpoint string, content map[string]strin
 	resp, err := client.httpClient.Do(req)
 	if err != nil {
 		return nil, err
+	}
+
+	if resp.StatusCode != 200 {
+		tmp := &struct {
+			Message string `json:"error"`
+		}{}
+		json.NewDecoder(resp.Body).Decode(tmp)
+		return nil, errors.NewEndPointError(tmp.Message)
 	}
 
 	return resp.Body, nil
