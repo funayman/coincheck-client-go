@@ -3,8 +3,6 @@ package coincheck
 import (
 	"encoding/json"
 	"strconv"
-
-	"github.com/funayman/coincheck-client-go/errors"
 )
 
 type Rate struct {
@@ -20,18 +18,13 @@ type CalculatedRate struct {
 func (cr *CalculatedRate) UnmarshalJSON(b []byte) error {
 	type Alias CalculatedRate
 	tmp := &struct {
-		Rate  string `json:"rate"`
-		Error string `json:"error"`
+		Rate string `json:"rate"`
 		*Alias
 	}{Alias: (*Alias)(cr)}
 
 	err := json.Unmarshal(b, tmp)
 	if err != nil {
 		return nil
-	}
-
-	if tmp.Error != "" {
-		return errors.NewEndPointError(tmp.Error)
 	}
 
 	rate, err := strconv.ParseFloat(tmp.Rate, 64)
@@ -57,13 +50,9 @@ func (r Rate) Coin(coin string) (float64, error) {
 	}
 
 	tmp := &struct {
-		Rate  string `json:"rate"`
-		Error string
+		Rate string `json:"rate"`
 	}{}
 	json.NewDecoder(body).Decode(tmp)
-	if tmp.Error != "" {
-		return 0.0, errors.NewEndPointError(tmp.Error)
-	}
 
 	rate, err := strconv.ParseFloat(tmp.Rate, 64)
 	if err != nil {
