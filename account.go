@@ -33,6 +33,19 @@ type BankAccount struct {
 
 type BankAccounts []BankAccount
 
+type Balance struct {
+	JPY          string `json:"jpy"`
+	BTC          string `json:"btc"`
+	JPYReserved  string `json:"jpy_reserved"`
+	BTCReserved  string `json:"btc_reserved"`
+	JPYLendInUse string `json:"jpy_lend_in_use"`
+	BTCLendInUse string `json:"btc_lend_in_use"`
+	JPYLent      string `json:"jpy_lent"`
+	BTCLent      string `json:"btc_lent"`
+	JPYDebt      string `json:"jpy_debt"`
+	BTCDebt      string `json:"btc_debt"`
+}
+
 type Account struct {
 	ID              int64  `json:"id"`
 	Email           string `json:"email"`
@@ -43,8 +56,9 @@ type Account struct {
 	MakerFee        string `json:"maker_fee"`
 
 	Accounts       BankAccounts
-	DepositHistory []Transactions
-	SendHistory    []Transactions
+	DepositHistory Transactions
+	SentHistory    Transactions
+	Balance        Balance
 
 	client *Client
 }
@@ -67,10 +81,117 @@ func (a *Account) UnmarshalJSON(b []byte) error {
 }
 
 func (a *Account) Update() (err error) {
+	if err = a.UpdateAccountInfo(); err != nil {
+		return err
+	}
+	if err = a.UpdateBalance(); err != nil {
+		return err
+	}
+	if err = a.UpdateBankInfo(); err != nil {
+		return err
+	}
+	/* Currently getting invalid auth errors
+	if err = a.UpdateHistory(); err != nil {
+		return err
+	}
+	*/
+	return
+}
+
+func (a *Account) UpdateAccountInfo() (err error) {
+	url := "https://coincheck.com/api/accounts"
+	body, err := a.client.DoRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+
+	return json.NewDecoder(body).Decode(a)
+}
+
+func (a *Account) UpdateBalance() (err error) {
+	url := "https://coincheck.com/api/accounts/balance"
+	body, err := a.client.DoRequest("GET", url, nil)
+	if err != nil {
+		return
+	}
+
+	err = json.NewDecoder(body).Decode(&a.Balance)
+	return
+}
+
+func (a *Account) UpdateBankInfo() (err error) {
+	url := "https://coincheck.com/api/bank_accounts"
+	body, err := a.client.DoRequest("GET", url, nil)
+	if err != nil {
+		return
+	}
+
+	tmp := &struct {
+		Data BankAccounts `json:"data"`
+	}{}
+	err = json.NewDecoder(body).Decode(tmp)
+	if err != nil {
+		return
+	}
+
+	a.Accounts = tmp.Data
+	return
+}
+
+/***************
+ **  HISTORY  **
+ ***************/
+
+//UpdateHistory updates both Sent and Deposit History
+func (a *Account) UpdateHistory() (err error) {
+	if err = a.updateDepositHistory(); err != nil {
+		return err
+	}
+	if err = a.updateSentHistory(); err != nil {
+		return err
+	}
+	return
+}
+
+func (a *Account) updateSentHistory() (err error) {
+	url := "http://www.coincheck.com/api/send_money"
+	body, err := a.client.DoRequest("GET", url, map[string]string{"currency": "btc"})
+	if err != nil {
+		return
+	}
+
+	tmp := &struct {
+		Data Transactions `json:"sends"`
+	}{}
+
+	if err = json.NewDecoder(body).Decode(tmp); err != nil {
+		return
+	}
+
+	a.SentHistory = tmp.Data
 
 	return
 }
 
+func (a *Account) updateDepositHistory() (err error) {
+	url := "http://www.coincheck.com/api/deposit_money"
+	body, err := a.client.DoRequest("GET", url, map[string]string{"currency": "BTC"})
+	if err != nil {
+		return
+	}
+
+	tmp := &struct {
+		Data Transactions `json:"deposits"`
+	}{}
+	if err = json.NewDecoder(body).Decode(tmp); err != nil {
+		return
+	}
+	a.DepositHistory = tmp.Data
+
+	return
+}
+
+//SendBTC sends bitcoin to the specified address
 func (a Account) SendBTC(address string, amount float64) (t Transaction, err error) {
 	url := "https://coincheck.com/api/send_money"
 	content := map[string]string{

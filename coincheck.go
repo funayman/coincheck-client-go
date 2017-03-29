@@ -52,8 +52,9 @@ type Client struct {
 	apiSecret  string
 	httpClient http.Client
 
-	Ticker *Ticker
-	Rate   *Rate
+	Ticker  *Ticker
+	Rate    *Rate
+	Account *Account
 }
 
 //New returns a new instance of the CoicCheck client with the specified API key & secret
@@ -66,6 +67,7 @@ func New(key, secret string) *Client {
 
 	c.Ticker = &Ticker{client: c}
 	c.Rate = &Rate{client: c}
+	c.Account = &Account{client: c}
 
 	return c
 }
