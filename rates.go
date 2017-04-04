@@ -42,7 +42,7 @@ func (cr *CalculatedRate) UnmarshalJSON(b []byte) error {
 //ETH_BTC would return the rate of Ethereum in BitCoins
 //More information can be found at https://coincheck.com/documents/exchange/api#buy-rate
 func (r Rate) Coin(coin string) (float64, error) {
-	url := "https://coincheck.com/api/rate/" + coin
+	url := "/rate" + coin
 
 	body, err := r.client.DoRequest("GET", url, nil)
 	if err != nil {
@@ -81,7 +81,7 @@ func (r *Rate) CalculateByPrice(orderType, pair string, price float64) (cr Calcu
 }
 
 func (r Rate) calculateRate(data map[string]string) (cr CalculatedRate, err error) {
-	url := "https://coincheck.com/api/exchange/orders/rate"
+	url := "/exchange/orders/rate"
 
 	body, err := r.client.DoRequest("GET", url, data)
 	if err != nil {

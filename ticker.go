@@ -49,7 +49,7 @@ func (t *Ticker) UnmarshalJSON(b []byte) (err error) {
 //Ticker gets the latest information and returns a Ticker
 //More information can be found at https://coincheck.com/documents/exchange/api#ticker
 func (client Client) Ticker() (t Ticker, err error) {
-	url := "https://coincheck.com/api/ticker"
+	url := "/ticker"
 	body, err := client.DoRequest("GET", url, nil)
 	if err != nil {
 		return t, err

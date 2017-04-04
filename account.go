@@ -80,7 +80,7 @@ func (a *Account) Update() (err error) {
 }
 
 func (a *Account) UpdateAccountInfo() (err error) {
-	url := "https://coincheck.com/api/accounts"
+	url := "/accounts"
 	body, err := a.client.DoRequest("GET", url, nil)
 	if err != nil {
 		return err
@@ -90,7 +90,7 @@ func (a *Account) UpdateAccountInfo() (err error) {
 }
 
 func (a *Account) UpdateBalance() (err error) {
-	url := "https://coincheck.com/api/accounts/balance"
+	url := "/accounts/balance"
 	body, err := a.client.DoRequest("GET", url, nil)
 	if err != nil {
 		return
@@ -101,7 +101,7 @@ func (a *Account) UpdateBalance() (err error) {
 }
 
 func (a *Account) UpdateBankInfo() (err error) {
-	url := "https://coincheck.com/api/bank_accounts"
+	url := "/bank_accounts"
 	body, err := a.client.DoRequest("GET", url, nil)
 	if err != nil {
 		return
@@ -135,7 +135,7 @@ func (a *Account) UpdateHistory() (err error) {
 }
 
 func (a *Account) updateSentHistory() (err error) {
-	url := "http://www.coincheck.com/api/send_money"
+	url := "/send_money"
 	body, err := a.client.DoRequest("GET", url, map[string]string{"currency": "BTC"})
 	if err != nil {
 		return
@@ -155,7 +155,7 @@ func (a *Account) updateSentHistory() (err error) {
 }
 
 func (a *Account) updateDepositHistory() (err error) {
-	url := "http://www.coincheck.com/api/deposit_money"
+	url := "/deposit_money"
 	body, err := a.client.DoRequest("GET", url, map[string]string{"currency": "BTC"})
 	if err != nil {
 		return
@@ -174,7 +174,7 @@ func (a *Account) updateDepositHistory() (err error) {
 
 //SendBTC sends bitcoin to the specified address
 func (a Account) SendBTC(address string, amount float64) (t Transaction, err error) {
-	url := "https://coincheck.com/api/send_money"
+	url := "/send_money"
 	content := map[string]string{
 		"address": address,
 		"amount":  strconv.FormatFloat(amount, 'G', -1, 64),

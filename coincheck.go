@@ -18,6 +18,8 @@ import (
 )
 
 const (
+	BaseURL = "https://coincheck.com/api"
+
 	BUY  = "buy"
 	SELL = "sell"
 
@@ -78,8 +80,7 @@ func createSignature(nonce, url, secret, body string) string {
 }
 
 //DoRequest create a request for the given endpoint
-func (client Client) DoRequest(method, endpoint string, content map[string]string) (io.Reader, error) {
-	var body io.Reader
+func (client Client) DoRequest(method, endpoint string, content map[string]string) (body io.Reader, err error) {
 	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
 	data := url.Values{}
 	for key, value := range content {
@@ -98,7 +99,7 @@ func (client Client) DoRequest(method, endpoint string, content map[string]strin
 
 	}
 
-	req, err := http.NewRequest(method, endpoint, body)
+	req, err := http.NewRequest(method, BaseURL+endpoint, body)
 	if err != nil {
 		return nil, err
 	}
