@@ -52,7 +52,6 @@ type Client struct {
 	apiSecret  string
 	httpClient http.Client
 
-	Ticker  *Ticker
 	Rate    *Rate
 	Account *Account
 }
@@ -65,7 +64,6 @@ func New(key, secret string) *Client {
 		httpClient: http.Client{},
 	}
 
-	c.Ticker = &Ticker{client: c}
 	c.Rate = &Rate{client: c}
 	c.Account = &Account{client: c}
 

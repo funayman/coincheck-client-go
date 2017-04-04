@@ -10,16 +10,14 @@ import (
 //Timestamp is converted into a time.Time type rather than a Unix Timestamp
 //Raw houses the original JSON request data as []byte
 type Ticker struct {
-	Last      int       `json:"last"`
-	Bid       int       `json:"bid"`
-	Ask       int       `json:"ask"`
-	High      int       `json:"high"`
-	Low       int       `json:"low"`
-	Volume    float64   `json:"volume"`
-	Timestamp time.Time `json:"timestamp"`
+	Last      int `json:"last"`
+	Bid       int `json:"bid"`
+	Ask       int `json:"ask"`
+	High      int `json:"high"`
+	Low       int `json:"low"`
+	Volume    float64
+	Timestamp time.Time
 	Raw       []byte
-
-	client *Client
 }
 
 //UnmarshalJSON is used to parse timestamp into time.Time and volume into float64
@@ -48,17 +46,17 @@ func (t *Ticker) UnmarshalJSON(b []byte) (err error) {
 	return nil
 }
 
-//Update gets the latest information and updates the struct
+//Ticker gets the latest information and returns a Ticker
 //More information can be found at https://coincheck.com/documents/exchange/api#ticker
-func (t *Ticker) Update() (err error) {
+func (client Client) Ticker() (t Ticker, err error) {
 	url := "https://coincheck.com/api/ticker"
-	body, err := t.client.DoRequest("GET", url, nil)
+	body, err := client.DoRequest("GET", url, nil)
 	if err != nil {
-		return err
+		return t, err
 	}
 
 	if err = json.NewDecoder(body).Decode(&t); err != nil {
-		return err
+		return t, err
 	}
-	return nil
+	return
 }
