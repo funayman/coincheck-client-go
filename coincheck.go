@@ -72,8 +72,8 @@ func New(key, secret string) *Client {
 	return c
 }
 
-func createSignature(nonce int64, url, secret string) string {
-	message := fmt.Sprintf("%d%s%s", nonce, url, "")
+func createSignature(nonce, url, secret, body string) string {
+	message := fmt.Sprintf("%s%s%s", nonce, url, body)
 	sig := hmac.New(sha256.New, []byte(secret))
 	sig.Write([]byte(message))
 	return hex.EncodeToString(sig.Sum(nil))
@@ -82,7 +82,7 @@ func createSignature(nonce int64, url, secret string) string {
 //DoRequest create a request for the given endpoint
 func (client Client) DoRequest(method, endpoint string, content map[string]string) (io.Reader, error) {
 	var body io.Reader
-	nonce := time.Now().UnixNano()
+	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
 	data := url.Values{}
 	for key, value := range content {
 		data.Add(key, value)
@@ -104,9 +104,10 @@ func (client Client) DoRequest(method, endpoint string, content map[string]strin
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("ACCESS-KEY", client.apiKey)
-	req.Header.Add("ACCESS-NONCE", strconv.FormatInt(nonce, 10))
-	req.Header.Add("ACCESS-SIGNATURE", createSignature(nonce, endpoint, client.apiSecret))
+	req.Header.Add("ACCESS-NONCE", nonce)
+	req.Header.Add("ACCESS-SIGNATURE", createSignature(nonce, endpoint, client.apiSecret, data.Encode()))
 
 	resp, err := client.httpClient.Do(req)
 	if err != nil {

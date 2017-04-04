@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"strconv"
 	"time"
-
-	"github.com/funayman/coincheck-client-go/errors"
 )
 
 type Transaction struct {
@@ -61,23 +59,6 @@ type Account struct {
 	Balance        Balance
 
 	client *Client
-}
-
-func (a *Account) UnmarshalJSON(b []byte) error {
-	type Alias Account
-	tmp := &struct {
-		Error string `json:"error"`
-		*Alias
-	}{Alias: (*Alias)(a)}
-
-	if err := json.Unmarshal(b, tmp); err != nil {
-		return err
-	}
-	if tmp.Error != "" {
-		return errors.NewEndPointError(tmp.Error)
-	}
-
-	return nil
 }
 
 func (a *Account) Update() (err error) {
@@ -155,7 +136,7 @@ func (a *Account) UpdateHistory() (err error) {
 
 func (a *Account) updateSentHistory() (err error) {
 	url := "http://www.coincheck.com/api/send_money"
-	body, err := a.client.DoRequest("GET", url, map[string]string{"currency": "btc"})
+	body, err := a.client.DoRequest("GET", url, map[string]string{"currency": "BTC"})
 	if err != nil {
 		return
 	}
