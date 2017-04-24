@@ -7,40 +7,44 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
-
-	"github.com/funayman/coincheck-client-go/errors"
 )
 
 const (
-	BUY  = "buy"
-	SELL = "sell"
+	//BaseURL Coincheck API URL
+	BaseURL = "https://coincheck.com/api"
 
-	BTC_JPY = "btc_jpy"
-	ETH_JPY = "eth_jpy"
-	ETH_BTC = "eth_btc"
-	ETC_JPY = "etc_jpy"
-	ETC_BTC = "etc_btc"
-	DAO_JPY = "dao_jpy"
-	LSK_JPY = "lsk_jpy"
-	LSK_BTC = "lsk_btc"
-	FCT_JPY = "fct_jpy"
-	FTC_BTC = "fct_btc"
-	XMR_JPY = "xmr_jpy"
-	XMR_BTC = "xmr_btc"
-	REP_JPY = "rep_jpy"
-	REP_BTC = "rep_btc"
-	XRP_JPY = "xrp_jpy"
-	XPR_BTC = "xrp_btc"
-	ZEC_JPY = "zec_jpy"
-	ZEC_BTC = "zec_btc"
+	//SendingFee to send BTC out of CoinCheck
+	SendingFee = 0.0005
+
+	BtcJpy = "btc_jpy"
+	EthJpy = "eth_jpy"
+	EthBtc = "eth_btc"
+	EtcJpy = "etc_jpy"
+	EtcBtc = "etc_btc"
+	DaoJpy = "dao_jpy"
+	LskJpy = "lsk_jpy"
+	LskBtc = "lsk_btc"
+	FctJpy = "fct_jpy"
+	FtcBtc = "fct_btc"
+	XmrJpy = "xmr_jpy"
+	XmrBtc = "xmr_btc"
+	RepJpy = "rep_jpy"
+	RepBtc = "rep_btc"
+	XrpJpy = "xrp_jpy"
+	XprBtc = "xrp_btc"
+	ZecJpy = "zec_jpy"
+	ZecBtc = "zec_btc"
 )
 
+//IClient a client interface
 type IClient interface {
 	DoRequest(method, endpoint string, content map[string]string) (io.Reader, error)
 }
@@ -51,25 +55,15 @@ type Client struct {
 	apiKey     string
 	apiSecret  string
 	httpClient http.Client
-
-	Ticker  *Ticker
-	Rate    *Rate
-	Account *Account
 }
 
 //New returns a new instance of the CoicCheck client with the specified API key & secret
 func New(key, secret string) *Client {
-	c := &Client{
+	return &Client{
 		apiKey:     key,
 		apiSecret:  secret,
 		httpClient: http.Client{},
 	}
-
-	c.Ticker = &Ticker{client: c}
-	c.Rate = &Rate{client: c}
-	c.Account = &Account{client: c}
-
-	return c
 }
 
 func createSignature(nonce, url, secret, body string) string {
@@ -80,34 +74,39 @@ func createSignature(nonce, url, secret, body string) string {
 }
 
 //DoRequest create a request for the given endpoint
-func (client Client) DoRequest(method, endpoint string, content map[string]string) (io.Reader, error) {
+func (client *Client) DoRequest(method, endpoint string, content map[string]string) (io.Reader, error) {
+	var data string
 	var body io.Reader
+
 	nonce := strconv.FormatInt(time.Now().UnixNano(), 10)
-	data := url.Values{}
-	for key, value := range content {
-		data.Add(key, value)
-	}
 
 	switch method {
 	case "", "GET":
+		m := url.Values{}
+		for key, value := range content {
+			m.Add(key, value)
+		}
+		data = m.Encode()
 		if content != nil {
-			endpoint = endpoint + "?" + data.Encode()
+			endpoint = endpoint + "?" + data
 		}
 	case "POST", "DELETE":
-		body = bytes.NewBufferString(data.Encode())
+		b, _ := json.Marshal(content)
+		data = string(b)
+		body = bytes.NewReader(b)
 	default:
-		return nil, errors.NewGenericError("Invalid method (" + method + ")")
+		return nil, errors.New("Invalid method (" + method + ")")
 
 	}
 
-	req, err := http.NewRequest(method, endpoint, body)
+	req, err := http.NewRequest(method, BaseURL+endpoint, body)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("ACCESS-KEY", client.apiKey)
 	req.Header.Add("ACCESS-NONCE", nonce)
-	req.Header.Add("ACCESS-SIGNATURE", createSignature(nonce, endpoint, client.apiSecret, data.Encode()))
+	req.Header.Add("ACCESS-SIGNATURE", createSignature(nonce, BaseURL+endpoint, client.apiSecret, data))
 
 	resp, err := client.httpClient.Do(req)
 	if err != nil {
@@ -119,7 +118,9 @@ func (client Client) DoRequest(method, endpoint string, content map[string]strin
 			Message string `json:"error"`
 		}{}
 		json.NewDecoder(resp.Body).Decode(tmp)
-		return nil, errors.NewEndPointError(tmp.Message)
+		msg := strings.Replace(tmp.Message, "\n", " | ", -1)
+		endPointError := fmt.Sprintf("StatusCode[%d], Error[%s]", resp.StatusCode, msg)
+		return nil, errors.New(endPointError)
 	}
 
 	return resp.Body, nil
