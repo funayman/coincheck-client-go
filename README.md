@@ -1,10 +1,12 @@
 # CoinCheck Client
 A simple [CoinCheck](https://www.coincheck.com) client written in Go.
+
 Lacking many features and I will implement more as I need them
+
 But right now, it works
 
 ```go
-var client = coincheck.New("APIKEY", "APISECRET")
+var client = coincheck.NewClient("APIKEY", "APISECRET")
 
 //Get the current rate & current balance at CoinCheck
 ccRate, _:= client.Rate(coincheck.BtcJpy)
