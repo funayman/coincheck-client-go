@@ -87,7 +87,7 @@ type OrderTransaction struct {
 	CreatedAt time.Time
 	Funds     struct {
 		Btc string `json:"btc"`
-		Jpy string `json:"jpn"`
+		Jpy string `json:"jpy"`
 	}
 	Pair        string `json:"pair"`
 	Rate        string `json:"rate"`
@@ -95,6 +95,31 @@ type OrderTransaction struct {
 	Fee         string `json:"fee"`
 	Liquidity   string `json:"liquidity"`
 	Side        string `json:"side"`
+
+	Raw []byte
+}
+
+//UnmarshalJSON custom for CreatedAt from JSON response to time.Time
+func (ot *OrderTransaction) UnmarshalJSON(b []byte) error {
+	type Alias OrderTransaction
+	tmp := &struct {
+		CreatedAt string `json:"created_at"`
+		*Alias
+	}{Alias: (*Alias)(ot)}
+
+	err := json.Unmarshal(b, tmp)
+	if err != nil {
+		return err
+	}
+
+	ca, err := time.Parse(time.RFC3339, tmp.CreatedAt)
+	if err != nil {
+		return err
+	}
+
+	ot.CreatedAt = ca
+	ot.Raw = b
+	return nil
 }
 
 //NewOrder Publish new order to exchange.
